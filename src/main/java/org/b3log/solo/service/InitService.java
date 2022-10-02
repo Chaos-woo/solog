@@ -145,6 +145,8 @@ public class InitService {
         }
 
         try {
+            // 获取配置数据版本是否存在判断是否进行过初始化
+            // 该数据版本号即数据库表的数据结构或数据内容迭代升级版本号
             inited = null != optionRepository.get(Option.ID_C_VERSION);
             if (!inited && !printedInitMsg) {
                 LOGGER.log(Level.WARN, "Solo has not been initialized, please open your browser to init Solo");
@@ -167,6 +169,7 @@ public class InitService {
             final boolean userTableExist = JdbcRepositories.existTable(tablePrefix + User.USER);
             final boolean optionTableExist = JdbcRepositories.existTable(tablePrefix + Option.OPTION);
             if (userTableExist && optionTableExist) {
+                // 用户表&基础配置表存在时表示已完成数据表初始化
                 return;
             }
         } catch (final Exception e) {

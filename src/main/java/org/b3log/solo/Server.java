@@ -249,6 +249,7 @@ public final class Server extends BaseServer {
             }
         }
 
+        // 路由处理器配置
         routeProcessors();
 
         final Latkes.RuntimeDatabase runtimeDatabase = Latkes.getRuntimeDatabase();
@@ -269,14 +270,14 @@ public final class Server extends BaseServer {
         Dispatcher.error("/error/{statusCode}", errorProcessor::showErrorPage);
 
         final InitService initService = beanManager.getReference(InitService.class);
-        initService.initTables();
+        initService.initTables(); // 表结构初始化
 
         Statics.clear();
 
         if (initService.isInited()) {
             // Upgrade check https://github.com/b3log/solo/issues/12040
             final UpgradeService upgradeService = beanManager.getReference(UpgradeService.class);
-            upgradeService.upgrade();
+            upgradeService.upgrade(); // 表结构、数据版本迭代升级
 
             // Import check https://github.com/b3log/solo/issues/12293
             final ImportService importService = beanManager.getReference(ImportService.class);
@@ -297,8 +298,10 @@ public final class Server extends BaseServer {
             }
         }
 
+        // 事件注册
         registerEventHandlers();
 
+        // 插件加载
         final PluginManager pluginManager = beanManager.getReference(PluginManager.class);
         pluginManager.load();
 
@@ -306,6 +309,7 @@ public final class Server extends BaseServer {
             LOGGER.info("Solo is running");
         }
 
+        /// 定时任务服务，可能包含与社区交互的内容
         final CronMgmtService cronMgmtService = beanManager.getReference(CronMgmtService.class);
         cronMgmtService.start();
 
@@ -320,6 +324,7 @@ public final class Server extends BaseServer {
         LOGGER.log(Level.DEBUG, "Stopwatch: {}{}", Strings.LINE_SEPARATOR, Stopwatchs.getTimingStat());
         Stopwatchs.release();
 
+        // 服务启动，solo当前版本底层基于Netty，用户自定义handler即为Dispatcher路由分发
         final String unixDomainSocketPath = commandLine.getOptionValue("unix_domain_socket_path");
         if (StringUtils.isNotBlank(unixDomainSocketPath)) {
             server.start(unixDomainSocketPath);
@@ -358,7 +363,7 @@ public final class Server extends BaseServer {
                 return;
             }
 
-            Markdowns.loadMarkdownOption(preference);
+            Markdowns.loadMarkdownOption(preference); // 配置项缓存加载
         } catch (final Exception e) {
             LOGGER.log(Level.ERROR, e.getMessage(), e);
             System.exit(-1);
@@ -412,13 +417,17 @@ public final class Server extends BaseServer {
 
     public static void routeProcessors() {
         Dispatcher.startRequestHandler = new BeforeRequestHandler();
+        /// 注意组件插入的位置
         Dispatcher.HANDLERS.add(1, new SkinHandler());
-        Dispatcher.HANDLERS.add(2, new InitCheckHandler());
+        Dispatcher.HANDLERS.add(2, new InitCheckHandler()); // solo资源初始化校验
         Dispatcher.HANDLERS.add(3, new PermalinkHandler());
         Dispatcher.endRequestHandler = new AfterRequestHandler();
 
+        // 后台路由处理配置
         routeConsoleProcessors();
+        // 前台路由处理配置
         routeIndexProcessors();
+        // Latke路由映射
         Dispatcher.mapping();
     }
 
@@ -508,6 +517,37 @@ public final class Server extends BaseServer {
     private static void routeConsoleProcessors() {
         final BeanManager beanManager = BeanManager.getInstance();
 
+        /**
+         * ```
+         * for (handleIndex++; handleIndex < handlers.size(); handleIndex++) {
+         *    handlers.get(handleIndex).handle(this);
+         * }
+         * ```
+         * Latke @see RequestContext#handle()
+         * 1. 无中间件（XxxxMidware）的情况，Handler的handle()方法中使用context.handle()与
+         * Handler的handle()方法中return或不执行context.handle()，等待for循环中的责任链模式处理并无差别，
+         * 如示意图1；
+         * 2. 有中间件（XxxxMidware）的情况，某个Handler（如RouteHandler）在handler()方法中
+         * 使用context.handle()，则会在执行下一个责任执行者（Handler）处理前，会先执行动态插入
+         * 的中间件方法，如示意图2；
+         * 3. 示意图1：
+         * StaticResourceHandler -> RouteHandler -> InvokeHandler
+         * 4. 示意图2：
+         * StaticResourceHandler -> RouteHandler -> Xx1Midware -> Xx2Midware -> InvokeHandler
+         * 5. 根据RouteHandler的源码所示，Latke的中间件都是依附于某一组路由工作的，且路由配置时
+         * 中间件的配置顺序与实际执行顺序是相同的，因此不需要开发者过多关注
+         * ```
+         * final RouteResolution result = doMatch(requestURI, httpMethod);
+         * ...
+         * // 插入中间件
+         * final ContextHandlerMeta contextHandlerMeta = result.getContextHandlerMeta();
+         * final List<Handler> middlewares = contextHandlerMeta.getMiddlewares();
+         * for (int i = middlewares.size() - 1; 0 <= i; i--) {
+         *     final Handler middleware = middlewares.get(i);
+         *     context.insertHandlerAfter(middleware);
+         * }
+         * ```
+         */
         final ConsoleAuthMidware consoleAuthMidware = beanManager.getReference(ConsoleAuthMidware.class);
         final ConsoleAdminAuthMidware consoleAdminAuthMidware = beanManager.getReference(ConsoleAdminAuthMidware.class);
 
