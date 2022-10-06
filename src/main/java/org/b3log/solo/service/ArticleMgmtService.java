@@ -587,7 +587,7 @@ public class ArticleMgmtService {
             final List<JSONObject> randomArticles = articleRepository.getRandomly(updateCnt);
             for (final JSONObject article : randomArticles) {
                 article.put(Article.ARTICLE_RANDOM_DOUBLE, Math.random());
-                articleRepository.update(article.getString(Keys.OBJECT_ID), article, ARTICLE_RANDOM_DOUBLE);
+                articleRepository.update(article.getString(Keys.OBJECT_ID), article, Article.ARTICLE_RANDOM_DOUBLE);
             }
             transaction.commit();
         } catch (final Exception e) {

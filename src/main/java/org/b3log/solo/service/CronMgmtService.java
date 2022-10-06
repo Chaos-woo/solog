@@ -81,6 +81,7 @@ public class CronMgmtService {
 
         SCHEDULED_EXECUTOR_SERVICE.scheduleAtFixedRate(() -> {
             try {
+                /// 移除xx时间内无任何请求的IP（访问者）计数
                 StatisticMgmtService.removeExpiredOnlineVisitor();
             } catch (final Exception e) {
                 LOGGER.log(Level.ERROR, "Executes cron failed", e);
@@ -92,7 +93,9 @@ public class CronMgmtService {
 
         SCHEDULED_EXECUTOR_SERVICE.scheduleAtFixedRate(() -> {
             try {
+                /// 获取链滴社区的IP黑名单
                 Solos.reloadBlacklistIPs();
+                /// 更新文章的随机值，用于快速查询随机文章列表，可能用于B3社区帖子推荐，或是随机文章浏览
                 articleMgmtService.updateArticlesRandomValue(20);
             } catch (final Exception e) {
                 LOGGER.log(Level.ERROR, "Executes cron failed", e);
@@ -105,7 +108,9 @@ public class CronMgmtService {
         SCHEDULED_EXECUTOR_SERVICE.scheduleAtFixedRate(() -> {
             try {
                 articleMgmtService.refreshGitHub();
+                /// 向B3社区推送、刷新博客端的站点信息
                 userMgmtService.refreshUSite();
+                /// 打包管理者所有文章向B3社区推送备份
                 exportService.exportLianDi();
                 exportService.exportGitHub();
             } catch (final Exception e) {
