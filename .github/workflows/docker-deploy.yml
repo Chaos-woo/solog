@@ -9,11 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build Image
-        run: docker build -t solog/solo:latest ./
+        run: docker build -t ${{ secrets.DOCKER_REPOSITORY }}:latest ./
       - name: Login image repository
         run: docker login --username=${{ secrets.DOCKER_USERNAME }} --password ${{ secrets.DOCKER_PASSWORD }} registry.cn-hangzhou.aliyuncs.com
       - name: Push Image
-        run: docker push solog/solo:latest
+        run: docker push ${{ secrets.DOCKER_REPOSITORY }}:latest
       - name: Deploy
         uses: appleboy/ssh-action@master
         with:
@@ -22,10 +22,10 @@ jobs:
           password: ${{ secrets.HOST_PASSWORD }}
           port: ${{ secrets.HOST_PORT }}
           script: |
-            docker stop $(docker ps --filter ancestor=solog/solo -q)
-            docker rm -f $(docker ps -a --filter ancestor=solog/solo:latest -q)
-            docker rmi -f $(docker images solog/solo:latest -q)
+            docker stop $(docker ps --filter ancestor=${{ secrets.DOCKER_REPOSITORY }} -q)
+            docker rm -f $(docker ps -a --filter ancestor=${{ secrets.DOCKER_REPOSITORY }}:latest -q)
+            docker rmi -f $(docker images ${{ secrets.DOCKER_REPOSITORY }}:latest -q)
             docker login --username=${{ secrets.DOCKER_USERNAME }} --password ${{ secrets.DOCKER_PASSWORD }} registry.cn-hangzhou.aliyuncs.com
-            docker pull solog/solo:latest
-            docker run -d docker run -d -p 50109:8080 --name solo -v solo-skins:/opt/solo/skins/ --env RUNTIME_DB="MYSQL" --env JDBC_USERNAME="${{ secrets.INNER_BRIGE_MYSQL_USERNAME }}" --env JDBC_PASSWORD="${{ secrets.INNER_BRIGE_MYSQL_PASSWORD }}" --env JDBC_DRIVER="com.mysql.cj.jdbc.Driver" --env JDBC_URL="jdbc:mysql://${{ secrets.INNER_BRIGE_HOST }}:${{ secrets.INNER_BRIGE_MYSQL_PORT }}/solo?useUnicode=yes&characterEncoding=UTF-8&useSSL=false&serverTimezone=UTC" solog/solo:latest --listen_port=8080 --server_scheme=http --server_host=solog.showlife.fun --server_port=8080
+            docker pull ${{ secrets.DOCKER_REPOSITORY }}:latest
+            docker run -d docker run -d -p 50109:8080 --name solo -v solo-skins:/opt/solo/skins/ --env RUNTIME_DB="MYSQL" --env JDBC_USERNAME="${{ secrets.INNER_BRIGE_MYSQL_USERNAME }}" --env JDBC_PASSWORD="${{ secrets.INNER_BRIGE_MYSQL_PASSWORD }}" --env JDBC_DRIVER="com.mysql.cj.jdbc.Driver" --env JDBC_URL="jdbc:mysql://${{ secrets.INNER_BRIGE_HOST }}:${{ secrets.INNER_BRIGE_MYSQL_PORT }}/solo?useUnicode=yes&characterEncoding=UTF-8&useSSL=false&serverTimezone=UTC" ${{ secrets.DOCKER_REPOSITORY }}:latest --listen_port=8080 --server_scheme=http --server_host=solog.showlife.fun --server_port=8080
       
